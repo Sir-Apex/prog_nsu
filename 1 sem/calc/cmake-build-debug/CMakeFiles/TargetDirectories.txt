@@ -1,0 +1,3 @@
+C:/Users/a.shshelokov/Desktop/calc/cmake-build-debug/CMakeFiles/untitled1.dir
+C:/Users/a.shshelokov/Desktop/calc/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/a.shshelokov/Desktop/calc/cmake-build-debug/CMakeFiles/rebuild_cache.dir
