@@ -1,10 +1,19 @@
 #include <stdio.h>
 #include <malloc.h>
+#include <stdbool.h>
+
+void * my_malloc(size_t size){
+    static int allocs=0;
+    if(allocs>22) return NULL;
+    allocs++;
+    return malloc(size);
+}
+#define malloc my_malloc
 
 
 typedef  struct tree_node { ///узел
     int key;
-    unsigned char height;///высота поддерева с корнем в данном узле
+    short height;///высота поддерева с корнем в данном узле
     struct tree_node * left_node;
     struct tree_node * right_node;
 }tree_node;
@@ -12,6 +21,7 @@ typedef  struct tree_node { ///узел
 
 tree_node * tree_create(int key){
     tree_node* node =malloc(sizeof(tree_node));
+    if(node==NULL) return NULL;
     node->key=key;
     node->height=1;
     node->left_node=0;
@@ -24,8 +34,8 @@ return (root) ? (root->height) : (0);
 }
 
 void count_height(tree_node*root){ ///получить высоту поддерева после балансировки
-unsigned char hl=get_height(root->left_node);
-unsigned char hr=get_height(root->right_node);
+short hl=get_height(root->left_node);
+short hr=get_height(root->right_node);
 root->height=((hl>hr) ? (hl) : (hr)) +1;
 }
 
@@ -69,10 +79,14 @@ if (balance_factor(root)==-2){
  }
 
 
-tree_node* insert(tree_node *root,int k) {
-    if (root == 0) return tree_create(k);
-    if (k < root->key) root->left_node = insert(root->left_node, k);
-    else root->right_node = insert(root->right_node, k);
+tree_node* insert(tree_node *root,int k,bool*capture) {
+    if (root == 0) {
+        tree_node* sub=tree_create(k);
+        if (sub==NULL) *capture=true;
+        return sub;
+    }
+    if (k < root->key) root->left_node = insert(root->left_node, k,capture);
+    else root->right_node = insert(root->right_node, k,capture);
     return balance(root);
 }
 
@@ -89,16 +103,17 @@ tree_node* insert(tree_node *root,int k) {
 
 
 
-
 int main() {
     tree_node * tree=NULL;
     int n,cur;
+    bool capture;
 scanf("%d",&n);
 while(n--){
     scanf("%d",&cur);
-    tree=insert(tree,cur);
+    tree=insert(tree,cur,&capture);
+    if (capture==true) {printf("memory error");return-1;}
 }
-printf("%d",get_height(tree));
+ printf("%d",get_height(tree));
 tree_free(tree);
     return 0;
 }
