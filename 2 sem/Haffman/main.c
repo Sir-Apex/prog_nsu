@@ -1,5 +1,7 @@
 #include <stdio.h>
-#include <malloc.h>
+#include <stdlib.h>
+
+#define BUFSIZE 1000
 
 typedef struct tree_node{
     unsigned char c;
@@ -40,7 +42,7 @@ void insert_pQ(struct pQ **huffpQ,tree_node *new_elem,int priority){
         (*huffpQ)->size=1;
         return;
     }else {
-        if (priority <= ((*huffpQ)->first->herz)) {///если частота вхождений у символа головы больше,то меняю их местами
+        if (priority < ((*huffpQ)->first->herz)) {///если частота вхождений у символа головы больше,то меняю их местами
             element->next = (*huffpQ)->first->next;
             (*huffpQ)->first = element;
             (*huffpQ)->size++;
@@ -48,7 +50,7 @@ void insert_pQ(struct pQ **huffpQ,tree_node *new_elem,int priority){
         } else {
             pQ_node *iterator = (*huffpQ)->first;///элемент для движения по списку
             while (iterator->next != NULL) {
-                if (priority <= iterator->herz) {
+                if (priority < iterator->herz) {
                     element->next = iterator->next;
                     iterator->next = element;
                     ++(*huffpQ)->size;
@@ -97,14 +99,32 @@ Ht_table* create_table(H_tree* Haffman_tree){
 return table;
 }
 
-H_tree* tree_build(char *string) {
-    int *herz_check = (int *) malloc(sizeof(int) * 256);///проверку воткнуть
-    for (int i = 0; i < 256; ++i) herz_check[i] = 0;
-    size_t pos = 0;
-    while (string[pos] != '\n') {
-        ++herz_check[string[pos]];
-        ++pos;
+int get_char_freq(const char *file_name, size_t *c_freq) {
+    FILE *input = fopen(file_name, "r");
+    if (input == NULL) {
+        printf("Cannot open input file: \\\"%s\\\"\"", file_name);
+        exit(1);
     }
+    char buff[BUFSIZE];
+    size_t fsize = 0;
+
+    while ((fsize = fread(buff, sizeof(char), BUFSIZE, input)) > 0) {
+        for (size_t i = 0; i < fsize; ++i) {
+            c_freq[buff[i]]++;
+        }
+    }
+    fclose(input);
+}
+
+H_tree* tree_build(const char *input_file_name) {
+
+    //FILE *in = fopen(input_file_name, "rb");
+
+   int herz_check[256] = {0};
+   // int *herz_check = (int *) malloc(sizeof(int) * 256);///проверку воткнуть
+
+   get_char_freq(input_file_name,herz_check);
+
     struct pQ *haff_pQ;
     init_pQ(&haff_pQ);///нет проверки на выделение,инициализация
     for (int i = 0; i < 256; ++i) {///заносим все символы в очередь
@@ -114,10 +134,12 @@ H_tree* tree_build(char *string) {
             insert_elem->right = NULL;
             insert_elem->c = (unsigned char) i;
             insert_pQ(&haff_pQ, insert_elem, herz_check[i]);
-
         }
     }
-    free(herz_check);///больше не нужен,уходи!
+    //free(herz_check);///больше не нужен,уходи!
+
+    //while()
+
 
 
    while(haff_pQ->size!=1){
@@ -138,8 +160,44 @@ H_tree* tree_build(char *string) {
 
 
 int main() {///ввод пидорский,потом пофиксить
+    FILE *in = fopen("in.txt", "r");
+    if (in == NULL) {
+        perror("can`t open this file");
+        exit(1);
+    }
 
-    char string[1024];
-    fgets(string, sizeof(char)*1024, stdin);
-    tree_build(string);
+
+    size_t fsize = 0;
+
+    FILE *temp = fopen("temp.txt", "w");
+
+    if (temp == NULL) {
+        perror("can`t open this file");
+        exit(1);
+    }
+
+    char *buff = malloc(BUFSIZE);
+
+    char mode = 0;
+
+    fread(buff, 1,3,in);
+
+    mode = buff[0];
+
+    while ((fsize = fread(buff, sizeof(char), BUFSIZE, in)) > 0) {
+        fwrite(buff, sizeof(char), fsize, temp);
+    }
+    free(buff);
+    fclose(in);
+    fclose(temp);
+//tree_build("temp.txt");
+    //char string[1024];
+    //fgets(string, sizeof(char)*1024, temp);
+
+    H_tree *root = tree_build("temp.txt");
+
     return 0;
+
+
+    }
+
