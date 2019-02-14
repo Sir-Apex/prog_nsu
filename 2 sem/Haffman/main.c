@@ -1,114 +1,98 @@
 #include <stdio.h>
-#include <stdlib.h>
+#include <malloc.h>
+#define buff_size 1024
+#define char_size 256
 
-#define BUFSIZE 1000
-
-typedef struct tree_node{
-    unsigned char c;
+typedef struct tree_node {
+    unsigned char symbol;
     struct tree_node *left;
     struct tree_node *right;
-}tree_node;
-
-typedef struct H_tree{
-    tree_node *root;
-}H_tree;
+} tree_node;
 
 
-typedef struct pQ_node{
-    int herz;
+typedef struct pq_node {
     tree_node *data;
-    struct pQ_node *next;
-}pQ_node;
+    size_t priority;
+    struct pq_node *next;
+}pq_node;
 
-struct pQ{
-    int size;
-    pQ_node *first;
-};
 
-void init_pQ(struct pQ **queue) {///инициализация
-    *queue=(struct pQ*)malloc(sizeof(struct pQ));///как проверить выделение ? ! скорее всего там,где буду инициализировать
-    (*queue)->size=0;
-    (*queue)->first=NULL;
 
-};
+tree_node *new_tree_node(unsigned char symbol,  tree_node *left, tree_node *right) {
+    tree_node *newNode = (tree_node *)
+            malloc(sizeof(tree_node));
+    newNode->symbol = symbol;
+    newNode->left = left;
+    newNode->right = right;
 
-void insert_pQ(struct pQ **huffpQ,tree_node *new_elem,int priority){
-    pQ_node * element=(pQ_node*)malloc(sizeof(pQ_node));///проверку воткнуть
-    element->data=new_elem;
-    element->herz=priority;
-    if ((*huffpQ)->size==0||(*huffpQ)->first==NULL){///если очередь пустая,то просто вношу элемент
-        element->next=NULL;
-        (*huffpQ)->first=element;
-        (*huffpQ)->size=1;
+    return newNode;
+}
+
+ pq_node *new_pq_node(unsigned char d, size_t p, tree_node *left, tree_node *right) {
+
+    tree_node *node = new_tree_node(d,  left, right);
+     pq_node *temp = ( pq_node *) malloc(sizeof( pq_node));
+    temp->data = node;
+    temp->priority = p;
+    temp->next = NULL;
+
+    return temp;
+}
+
+
+
+tree_node *get_head(struct pq_node **head) {
+
+    tree_node *res = (*head)->data;
+
+     pq_node *temp = *head;
+    (*head) = (*head)->next;
+    free(temp);
+
+    return res;
+}
+
+
+void push(struct pq_node **head, unsigned char d, size_t p, tree_node *left, tree_node *right) {
+    struct pq_node *start = (*head);
+    if (start == NULL) {
+        *head = new_pq_node(d, p, left, right);
         return;
-    }else {
-        if (priority < ((*huffpQ)->first->herz)) {///если частота вхождений у символа головы больше,то меняю их местами
-            element->next = (*huffpQ)->first->next;
-            (*huffpQ)->first = element;
-            (*huffpQ)->size++;
-            return;
-        } else {
-            pQ_node *iterator = (*huffpQ)->first;///элемент для движения по списку
-            while (iterator->next != NULL) {
-                if (priority < iterator->herz) {
-                    element->next = iterator->next;
-                    iterator->next = element;
-                    ++(*huffpQ)->size;
-                    return;
-                }
-                iterator = iterator->next;
-            }
-            if (iterator->next == NULL) {
-                element->next = NULL;
-                iterator->next = element;
-                ++(*huffpQ)->size;
-                return;
+    }
 
-            }
+    struct pq_node *temp = new_pq_node(d, p, left, right);
 
 
+    if ((*head)->priority > p) {
+
+
+        temp->next = *head;
+        (*head) = temp;
+
+    } else {
+
+
+        while (start->next != NULL &&
+               start->next->priority < p) {
+            start = start->next;
         }
 
+        temp->next = start->next;
+        start->next = temp;
     }
-
-};
-
-tree_node* get_first(struct pQ**queue){///нужна ли проверка на нуль?
-    tree_node *return_data=(*queue)->first->data;
-    (*queue)->first=(*queue)->first->next;
-    --(*queue)->size;
-    return return_data;
 }
 
-typedef struct table_node{
- char symbol;
- char *code;
- struct table_node *next;
-}table_node;
-
-typedef struct Ht_table{
-    table_node *first;
-    table_node *last;
-}Ht_table;
-
-Ht_table* create_table(H_tree* Haffman_tree){
-    Ht_table* table=(Ht_table*)malloc(sizeof(Ht_table));///проверку воткнуть
-    table->first=NULL;
-    table->last=NULL;
-////сюда воткнуть функцию обхода дерева и будет норм
-return table;
+int isLast(struct pq_node **head) {
+    return (*head)->next == NULL?1:0;
 }
 
-int get_char_freq(const char *file_name, size_t *c_freq) {
-    FILE *input = fopen(file_name, "r");
-    if (input == NULL) {
-        printf("Cannot open input file: \\\"%s\\\"\"", file_name);
-        exit(1);
-    }
-    char buff[BUFSIZE];
+
+ void get_char_herz(FILE *input, size_t *c_freq) {
+
+    char buff[buff_size];
     size_t fsize = 0;
 
-    while ((fsize = fread(buff, sizeof(char), BUFSIZE, input)) > 0) {
+    while ((fsize = fread(buff, sizeof(char), buff_size, input)) > 0) {
         for (size_t i = 0; i < fsize; ++i) {
             c_freq[buff[i]]++;
         }
@@ -116,56 +100,45 @@ int get_char_freq(const char *file_name, size_t *c_freq) {
     fclose(input);
 }
 
-H_tree* tree_build(const char *input_file_name) {
+typedef struct h_tree{
+    tree_node* root;
+}h_tree;
 
-    //FILE *in = fopen(input_file_name, "rb");
+h_tree *build_tree(const char *file_name) {
+    size_t herz_table[char_size] = {0};
+    FILE *input = fopen(file_name, "r");
+    if (input == NULL) {
+        printf("Cannot open file");
+        return NULL;
+    }
+    get_char_herz(input, herz_table);
 
-   int herz_check[256] = {0};
-   // int *herz_check = (int *) malloc(sizeof(int) * 256);///проверку воткнуть
+    pq_node *pq = NULL;
 
-   get_char_freq(input_file_name,herz_check);
-
-    struct pQ *haff_pQ;
-    init_pQ(&haff_pQ);///нет проверки на выделение,инициализация
-    for (int i = 0; i < 256; ++i) {///заносим все символы в очередь
-        if (herz_check[i] != 0) {
-            tree_node *insert_elem = (tree_node *) malloc(sizeof(tree_node));///нужна проверка
-            insert_elem->left = NULL;
-            insert_elem->right = NULL;
-            insert_elem->c = (unsigned char) i;
-            insert_pQ(&haff_pQ, insert_elem, herz_check[i]);
+    for (int i = 0; i < char_size; ++i) {
+        if (herz_table[i] != 0) {
+            push(&pq, (unsigned char)i, herz_table[i], NULL, NULL);
         }
     }
-    //free(herz_check);///больше не нужен,уходи!
 
-    //while()
+    while (!isLast(&pq)) {
+        size_t prior=pq->priority+pq->next->priority;
+        tree_node *right = get_head(&pq);
 
-
-
-   while(haff_pQ->size!=1){
-      int herz=haff_pQ->first->herz;
-      herz+=haff_pQ->first->next->herz;
-      tree_node*left=get_first(&haff_pQ);
-      tree_node*right=get_first(&haff_pQ);
-      tree_node*new_node=(tree_node*)malloc(sizeof(tree_node));////проверку воткнуть
-      new_node->left=left;
-      new_node->right=right;
-      insert_pQ(&haff_pQ,new_node,herz);
-   }
-   ////создание дерева
-    H_tree*tree=(H_tree*)malloc(sizeof(H_tree));///проверку воткнуть
-    tree->root=get_first(&haff_pQ);///заношу корень дерева
+        tree_node *left = get_head(&pq);
+        push(&pq, 0, prior, left, right);
+    }
+    h_tree * tree=(h_tree*)malloc(sizeof(h_tree));
+    tree->root=get_head(&pq);
     return tree;
 }
 
-
-int main() {///ввод пидорский,потом пофиксить
+int main() {
     FILE *in = fopen("in.txt", "r");
     if (in == NULL) {
         perror("can`t open this file");
-        exit(1);
+        return -1;
     }
-
 
     size_t fsize = 0;
 
@@ -173,31 +146,32 @@ int main() {///ввод пидорский,потом пофиксить
 
     if (temp == NULL) {
         perror("can`t open this file");
-        exit(1);
+        return -1;
     }
 
-    char *buff = malloc(BUFSIZE);
+    char *buff =(char*)malloc(sizeof(char)*buff_size);
+    {
+        if (buff==NULL){
+            printf("error");
+            return -42;
+        }
+    }
 
     char mode = 0;
 
-    fread(buff, 1,3,in);
+    fscanf(in, "%c\n", &mode);
 
-    mode = buff[0];
-
-    while ((fsize = fread(buff, sizeof(char), BUFSIZE, in)) > 0) {
+    while ((fsize = fread(buff, sizeof(char), buff_size, in)) > 0) {
         fwrite(buff, sizeof(char), fsize, temp);
     }
     free(buff);
     fclose(in);
     fclose(temp);
-//tree_build("temp.txt");
-    //char string[1024];
-    //fgets(string, sizeof(char)*1024, temp);
 
-    H_tree *root = tree_build("temp.txt");
+    printf("%c\n", mode);
+
+    h_tree *tree = build_tree("temp.txt");
 
     return 0;
 
-
-    }
-
+    
