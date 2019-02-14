@@ -1,79 +1,70 @@
 #include <stdio.h>
-#include <malloc.h>
+#include <string.h>
+#include<stdlib.h>
+#include <stdbool.h>
 #define buff_size 1024
 #define char_size 256
 
-typedef struct tree_node {
-    unsigned char symbol;
-    struct tree_node *left;
-    struct tree_node *right;
-} tree_node;
+typedef struct tree_node{
+    unsigned char element;
+    struct tree_node * left;
+    struct tree_node * right;
+}tree_node;
 
-
-typedef struct pq_node {
+typedef struct qp_node {
     tree_node *data;
-    size_t priority;
-    struct pq_node *next;
-}pq_node;
+    int priority;
+    struct qp_node *next;
+}qp_node;
 
 
+tree_node *new_tree_node(unsigned char symbol,tree_node*left,tree_node *right){
+    tree_node *new_elem=(tree_node*)malloc(sizeof(tree_node));///проверка чувак!
+    new_elem->element=symbol;
+    new_elem->left=left;
+    new_elem->right=right;
+    return new_elem;
 
-tree_node *new_tree_node(unsigned char symbol,  tree_node *left, tree_node *right) {
-    tree_node *newNode = (tree_node *)
-            malloc(sizeof(tree_node));
-    newNode->symbol = symbol;
-    newNode->left = left;
-    newNode->right = right;
-
-    return newNode;
 }
 
- pq_node *new_pq_node(unsigned char d, size_t p, tree_node *left, tree_node *right) {
-
-    tree_node *node = new_tree_node(d,  left, right);
-     pq_node *temp = ( pq_node *) malloc(sizeof( pq_node));
-    temp->data = node;
-    temp->priority = p;
-    temp->next = NULL;
-
-    return temp;
+qp_node *new_qp_node(unsigned char symbol,int priority,tree_node*left,tree_node *right){
+   tree_node*data= new_tree_node(symbol,left,right);
+   qp_node*new_elem=(qp_node*)malloc(sizeof(qp_node));///проверка
+   new_elem->data=data;
+   new_elem->priority=priority;
+   new_elem->next=NULL;
+    return  new_elem;
 }
 
+tree_node *get_head(qp_node **head){
+    tree_node *value=(*head)->data;
+    qp_node*tmp=(*head);
+    (*head)=(*head)->next;
+    free(tmp);
+return value;
 
-
-tree_node *get_head(struct pq_node **head) {
-
-    tree_node *res = (*head)->data;
-
-     pq_node *temp = *head;
-    (*head) = (*head)->next;
-    free(temp);
-
-    return res;
 }
 
+void push(qp_node **head, unsigned char symbol, int priority, tree_node *left, tree_node*right) {
+    qp_node *start = (*head);
 
-void push(struct pq_node **head, unsigned char d, size_t p, tree_node *left, tree_node *right) {
-    struct pq_node *start = (*head);
     if (start == NULL) {
-        *head = new_pq_node(d, p, left, right);
+        *head = new_qp_node(symbol, priority, left, right);
         return;
     }
 
-    struct pq_node *temp = new_pq_node(d, p, left, right);
 
+    qp_node *temp = new_qp_node(symbol, priority, left, right);
 
-    if ((*head)->priority > p) {
-
+    if ((*head)->priority > priority) {
 
         temp->next = *head;
         (*head) = temp;
 
     } else {
 
-
         while (start->next != NULL &&
-               start->next->priority < p) {
+               start->next->priority < priority) {
             start = start->next;
         }
 
@@ -82,96 +73,90 @@ void push(struct pq_node **head, unsigned char d, size_t p, tree_node *left, tre
     }
 }
 
-int isLast(struct pq_node **head) {
-    return (*head)->next == NULL?1:0;
+
+
+
+
+
+
+
+bool is_last(qp_node**head){
+    return (*head)->next==NULL?true:false;
 }
 
 
- void get_char_herz(FILE *input, size_t *c_freq) {
 
-    char buff[buff_size];
+void get_herz(FILE *in,unsigned char *buff,int *herz_table){
+    for(int i=0;i<char_size;++i) herz_table[i]=0;
     size_t fsize = 0;
-
-    while ((fsize = fread(buff, sizeof(char), buff_size, input)) > 0) {
+    while ((fsize = fread(buff, sizeof(char), buff_size, in)) != 0) {
         for (size_t i = 0; i < fsize; ++i) {
-            c_freq[buff[i]]++;
+            ++herz_table[buff[i]];
         }
     }
-    fclose(input);
+    fclose(in);
 }
 
-typedef struct h_tree{
-    tree_node* root;
-}h_tree;
 
-h_tree *build_tree(const char *file_name) {
-    size_t herz_table[char_size] = {0};
-    FILE *input = fopen(file_name, "r");
-    if (input == NULL) {
-        printf("Cannot open file");
-        return NULL;
-    }
-    get_char_herz(input, herz_table);
-
-    pq_node *pq = NULL;
-
-    for (int i = 0; i < char_size; ++i) {
-        if (herz_table[i] != 0) {
-            push(&pq, (unsigned char)i, herz_table[i], NULL, NULL);
+tree_node* tree_build(const char *input){
+    FILE*in =fopen(input,"r");
+    int herz_table[char_size];
+    unsigned char buff[buff_size];
+    get_herz(in,buff,herz_table);
+    qp_node* pq=NULL;
+   for(int i=0;i<char_size;++i){
+        if(herz_table[i]!=0){
+         push(&pq,(unsigned char)i,herz_table[i],NULL,NULL);
         }
     }
-
-    while (!isLast(&pq)) {
-        size_t prior=pq->priority+pq->next->priority;
-        tree_node *right = get_head(&pq);
-
-        tree_node *left = get_head(&pq);
-        push(&pq, 0, prior, left, right);
+    while(!is_last(&pq)){
+        int new_prior=0;
+        new_prior +=pq->priority;
+        tree_node*left=get_head(&pq);
+        new_prior +=pq->priority;
+        tree_node*right=get_head(&pq);
+        push(&pq,0,new_prior,left,right);
     }
-    h_tree * tree=(h_tree*)malloc(sizeof(h_tree));
-    tree->root=get_head(&pq);
-    return tree;
+
+    return get_head(&pq);
+
+
 }
+
+
+
+
 
 int main() {
-    FILE *in = fopen("in.txt", "r");
-    if (in == NULL) {
-        perror("can`t open this file");
-        return -1;
-    }
+ FILE *fin=fopen("in.txt","r");
+ if (!fin){
+    printf("can't open in.txt");
+    return -1;
+}
+ FILE *temp=fopen("temp.txt","w");
+ if(!temp){
+    printf("can't open temp"".txt");
+    return -1;
+ }
 
-    size_t fsize = 0;
 
-    FILE *temp = fopen("temp.txt", "w");
+ char mode;///с - coding, d -decoding
+ fscanf(fin,"%c\n",&mode);
 
-    if (temp == NULL) {
-        perror("can`t open this file");
-        return -1;
-    }
-
-    char *buff =(char*)malloc(sizeof(char)*buff_size);
-    {
-        if (buff==NULL){
-            printf("error");
-            return -42;
-        }
-    }
-
-    char mode = 0;
-
-    fscanf(in, "%c\n", &mode);
-
-    while ((fsize = fread(buff, sizeof(char), buff_size, in)) > 0) {
+ unsigned char *buff=(unsigned char*)malloc(sizeof(unsigned char)*buff_size);
+ if (buff==NULL){
+     printf("error");
+     return 42;
+ }
+ size_t fsize=0;
+ while ((fsize = fread(buff, sizeof(char), buff_size, fin)) != 0) {
         fwrite(buff, sizeof(char), fsize, temp);
-    }
-    free(buff);
-    fclose(in);
-    fclose(temp);
-
-    printf("%c\n", mode);
-
-    h_tree *tree = build_tree("temp.txt");
+ }
+ free(buff);
+ fclose(fin);
+ fclose(temp);
+ tree_node*dafaq=tree_build("temp.txt");
+printf("%c",dafaq->right->element);
 
     return 0;
-
-    
+}
